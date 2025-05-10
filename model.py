@@ -20,26 +20,38 @@ class SDnCNN(nn.Module):
             f"dilation_rates (for intermediate layers, cyclic): {self.dilation_rates}"
         )
 
+        # Store the class and its parameters
+        self.activation_class = None
+        self.activation_params = {}
+
         if activation.lower() == "relu":
-            act_layer = nn.ReLU(inplace=True)
+            self.activation_class = nn.ReLU
+            self.activation_params = {"inplace": True}
         elif activation.lower() == "leaky_relu":
-            act_layer = nn.LeakyReLU(negative_slope=0.1, inplace=True)
+            self.activation_class = nn.LeakyReLU
+            self.activation_params = {"negative_slope": 0.1, "inplace": True}
         elif activation.lower() == "prelu":
-            act_layer = nn.PReLU(num_parameters=num_channels)
+            self.activation_class = nn.PReLU
+            self.activation_params = {"num_parameters": num_channels}
         else:
             logger.warning(f"Unknown activation {activation}, defaulting to ReLU.")
-            act_layer = nn.ReLU(inplace=True)
+            self.activation_class = nn.ReLU
+            self.activation_params = {"inplace": True}
 
         layers = []
+        # First layer
         layers.append(
             nn.Conv2d(1, num_channels, kernel_size=3, padding=1, bias=True, dilation=1)
         )
-        layers.append(type(act_layer)())
+        layers.append(
+            self.activation_class(**self.activation_params)
+        )  # Correct instantiation
 
+        # Intermediate layers
         num_intermediate_layers = num_layers - 2
         for i in range(num_intermediate_layers):
             current_dilation = self.dilation_rates[i % len(self.dilation_rates)]
-            current_padding = current_dilation
+            current_padding = current_dilation  # Assuming kernel_size=3, padding=dilation maintains size
 
             layers.append(
                 nn.Conv2d(
@@ -52,8 +64,11 @@ class SDnCNN(nn.Module):
                 )
             )
             layers.append(nn.BatchNorm2d(num_channels))
-            layers.append(type(act_layer)())
+            layers.append(
+                self.activation_class(**self.activation_params)
+            )  # Correct instantiation
 
+        # Last layer
         layers.append(
             nn.Conv2d(num_channels, 1, kernel_size=3, padding=1, bias=True, dilation=1)
         )

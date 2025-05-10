@@ -3,7 +3,7 @@ defaults:
   # - variations: restoring 
 
 data:
-  sample_rate: 8000
+  sample_rate: 16000
   seed: 42
   base_dir: '${hydra:runtime.cwd}/data' 
   samples:

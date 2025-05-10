@@ -3,240 +3,240 @@ import torchaudio
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-import torch.nn as nn
-import hydra
-import sys
 
 from model import SDnCNN
 from utils import (
+    load_and_preprocess_audio,
     compute_stft_spectrogram,
     normalize_spectrogram_paper,
     denormalize_spectrogram_paper,
-    load_and_preprocess_audio,
-    compute_log_db,
+    reconstruct_waveform,
 )
 
+# --- Constants ---
+CLEAN_FILE = Path("data_small/test/clean/F_BG014_02-a0221.wav")
+NOISY_FILE = Path("data_small/test/noisy/F_BG014_02-a0221_w27.wav")
+MODEL_PATH = Path("models/best_model.pt")
+OUTPUT_IMAGE = Path("spectrogram_comparison_playground.png")
+OUT_WAV = Path("reconstructed_playground_test.wav")
 
-@hydra.main(
-    config_path=str("conf"),
-    config_name="primary",
-    version_base=None,
+TARGET_SAMPLE_RATE = 16000
+FFT_SIZE = 512
+HOP_LENGTH = 128
+WINDOW_LENGTH = 512
+STFT_WINDOW_TYPE = (
+    "hamming"  # Should match training config (e.g., primary.yaml stft.window_type)
 )
-def main(cfg) -> None:
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
 
-    # --- Paths relative to this script's location (e.g., scripts/playground.py) ---
-    script_dir = Path(__file__).parent.resolve()
-    samples_dir = script_dir / "samples"  # WAV files directly in samples/
-    output_dir_plots = script_dir / "plots"
-    # --- End Local Path Definitions ---
+MODEL_DEPTH = 17
+MODEL_CHANNELS = 64
+# Example: [1, 2, 4, 2, 1] will cycle through these for intermediate layers
+# Set to None or [] or [1] for standard convolutions (dilation=1) for intermediate layers
+MODEL_DILATION_RATES = [
+    1
+]  # Ensure this matches the trained model if MODEL_PATH is used
 
-    model_path_str = "models/1.pt"  # Assuming model is in "scripts/playground/models/"
-    model_path = script_dir / model_path_str
+EPS = 1e-9  # Epsilon for log calculation and avoiding division by zero
 
-    samples_dir.mkdir(parents=True, exist_ok=True)  # Ensure samples dir exists
-    output_dir_plots.mkdir(parents=True, exist_ok=True)
+# --- Device Setup ---
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
-    target_sample_rate = cfg.data.sample_rate
-    fft_size = cfg.stft.n_fft
-    hop_length = cfg.stft.hop_length
-    window_length = cfg.stft.win_length
-    window_type = cfg.stft.window_type.lower()
-    model_depth = cfg.model.depth
-    model_channels = cfg.model.channels
-    model_activation = cfg.model.activation
-    model_dilation_rates = (
-        list(cfg.model.dilation_rates) if cfg.model.dilation_rates is not None else None
-    )
-    eps = cfg.get("constants.eps", 1e-9)
 
-    print(f"Loading model from {model_path}")
-    model_instance = SDnCNN(
-        model_depth, model_channels, model_activation, model_dilation_rates
-    ).to(device)
-    try:
-        sd = torch.load(str(model_path), map_location=device)
-    except FileNotFoundError:
-        print(
-            f"Model file not found at {model_path}. "
-            f"Please ensure '{model_path_str}' exists relative to the script directory ({script_dir})."
-        )
-        # Attempting relative to CWD as a fallback
-        cwd_model_path = Path.cwd() / "models" / "best_model.pt"
-        print(f"Trying relative to CWD: {cwd_model_path}")
-        try:
-            sd = torch.load(str(cwd_model_path), map_location=device)
-        except FileNotFoundError:
-            print(f"Model file also not found at {cwd_model_path}. Exiting.")
-            sys.exit(1)
+# --- Helper Functions for Plotting ---
+def get_magnitude_from_log_power_db(log_power_db_tensor):
+    """Converts log-power spectrogram (10*log10(mag^2)) to magnitude spectrogram."""
+    # log_power_db = 10 * log10(mag^2)  (ignoring epsilon for simplicity here)
+    # log_power_db / 20 = 0.5 * log10(mag^2) = log10(mag)
+    # So, 10^(log_power_db / 20) = mag
+    magnitude = torch.pow(10.0, log_power_db_tensor / 20.0)
+    return magnitude
 
-    model_instance.load_state_dict(sd)
-    model_instance.eval()
 
-    # --- Specific file processing ---
-    noisy_file_name = "F_BG014_02-a0221_w12.wav"
-    # Per your previous instruction: "matching clean samples/FF_BG014_02-a0221.wav"
-    # If clean file has FF prefix and noisy does not, reflect that here:
-    clean_file_name = "F_BG014_02-a0221.wav"
-
-    noisy_file_path = samples_dir / noisy_file_name
-    clean_file_path = samples_dir / clean_file_name
-
-    # Check if files exist
-    if not noisy_file_path.exists():
-        print(f"ERROR: Noisy file not found at {noisy_file_path}")
-        sys.exit(1)
-    if not clean_file_path.exists():
-        print(f"ERROR: Clean file not found at {clean_file_path}")
-        sys.exit(1)
-
-    # Restored WAV will be saved directly in samples_dir
-    output_wav_path = samples_dir / f"{Path(noisy_file_name).stem}_restored.wav"
-    output_plot_path = output_dir_plots / f"{Path(noisy_file_name).stem}_comparison.png"
-
-    print(f"Processing: {noisy_file_path}")
-    print(f"Clean reference: {clean_file_path}")
-
-    clean_wav_orig = load_and_preprocess_audio(clean_file_path, target_sample_rate)
-    noisy_wav_orig = load_and_preprocess_audio(noisy_file_path, target_sample_rate)
-
-    L = min(clean_wav_orig.shape[-1], noisy_wav_orig.shape[-1])
-    clean_wav = clean_wav_orig[:L]
-    noisy_wav = noisy_wav_orig[:L]
-
-    noisy_gpu = noisy_wav.to(device)
-    clean_gpu = clean_wav.to(device)
-
-    log_power_clean_db, _ = compute_stft_spectrogram(
-        clean_gpu, fft_size, hop_length, window_length, window_type
-    )
-    log_power_noisy_db, phase_noisy = compute_stft_spectrogram(
-        noisy_gpu, fft_size, hop_length, window_length, window_type
-    )
-
-    norm_noisy, x_hat_min, x_bar_max = normalize_spectrogram_paper(log_power_noisy_db)
-
-    with torch.no_grad():
-        inp = norm_noisy.unsqueeze(0).unsqueeze(0)
-        resid = model_instance(inp).squeeze(0).squeeze(0)
-
-    clean_norm_est = norm_noisy - resid
-    log_power_clean_est_db = denormalize_spectrogram_paper(
-        clean_norm_est, x_hat_min, x_bar_max
-    )
-    mag_est_amp = torch.sqrt(
-        torch.clamp(10 ** (log_power_clean_est_db / 10.0), min=0.0)
-    )
-
-    if window_type == "blackman":
-        window_fn_torch = torch.blackman_window
-    elif window_type == "hann":
-        window_fn_torch = torch.hann_window
-    elif window_type == "hamming":
-        window_fn_torch = torch.hamming_window
-    else:
-        window_fn_torch = torch.hann_window
-
-    window_gpu = window_fn_torch(window_length, device=device)
-
-    spec_est_complex = mag_est_amp * torch.exp(1j * phase_noisy)
-    wave_est = torch.istft(
-        spec_est_complex,
-        n_fft=fft_size,
-        hop_length=hop_length,
-        win_length=window_length,
-        window=window_gpu,
-        length=L,
-    ).cpu()
-
-    print(f"Saving reconstructed waveform to {output_wav_path}")
-    torchaudio.save(str(output_wav_path), wave_est.unsqueeze(0), target_sample_rate)
-
-    # --- Plotting Preparation ---
-    clean_wav_np = clean_wav.cpu().numpy()
-    noisy_wav_np = noisy_wav.cpu().numpy()
-    wave_est_np = wave_est.numpy()
-
-    mag_clean_amp_np = (
-        torch.sqrt(torch.clamp(10 ** (log_power_clean_db / 10.0), min=0.0, max=1e12))
-        .cpu()
-        .numpy()
-    )
-    mag_noisy_amp_np = (
-        torch.sqrt(torch.clamp(10 ** (log_power_noisy_db / 10.0), min=0.0, max=1e12))
-        .cpu()
-        .numpy()
-    )
-    mag_est_amp_np = mag_est_amp.cpu().numpy()
-
-    db_clean_plot = compute_log_db(mag_clean_amp_np, eps)
-    db_noisy_plot = compute_log_db(mag_noisy_amp_np, eps)
-    db_est_plot = compute_log_db(mag_est_amp_np, eps)
-
-    vmin = np.percentile(db_noisy_plot, 5)
-    vmax = np.percentile(db_noisy_plot, 99)
-
-    plt.figure(figsize=(15, 10))
-
-    plt.subplot(3, 2, 1)
-    plt.plot(clean_wav_np)
-    plt.title(f"Clean Waveform ({Path(clean_file_name).name})")
-    plt.ylim(np.min(noisy_wav_np) * 1.1, np.max(noisy_wav_np) * 1.1)
-
-    plt.subplot(3, 2, 2)
-    plt.imshow(
-        db_clean_plot,
-        origin="lower",
-        aspect="auto",
-        cmap="viridis",
-        vmin=vmin,
-        vmax=vmax,
-    )
-    plt.title(f"Clean Spec (dB from Amplitude)")
-    plt.colorbar(format="%+2.0f dB")
-
-    plt.subplot(3, 2, 3)
-    plt.plot(noisy_wav_np)
-    plt.title(f"Noisy Waveform ({Path(noisy_file_name).name})")
-    plt.ylim(np.min(noisy_wav_np) * 1.1, np.max(noisy_wav_np) * 1.1)
-
-    plt.subplot(3, 2, 4)
-    plt.imshow(
-        db_noisy_plot,
-        origin="lower",
-        aspect="auto",
-        cmap="viridis",
-        vmin=vmin,
-        vmax=vmax,
-    )
-    plt.title(f"Noisy Spec (dB from Amplitude)")
-    plt.colorbar(format="%+2.0f dB")
-
-    plt.subplot(3, 2, 5)
-    plt.plot(wave_est_np)
-    plt.title(f"Restored Waveform")
-    plt.ylim(np.min(noisy_wav_np) * 1.1, np.max(noisy_wav_np) * 1.1)
-
-    plt.subplot(3, 2, 6)
-    plt.imshow(
-        db_est_plot,
-        origin="lower",
-        aspect="auto",
-        cmap="viridis",
-        vmin=vmin,
-        vmax=vmax,
-    )
-    plt.title(f"Restored Spec (dB from Amplitude)")
-    plt.colorbar(format="%+2.0f dB")
-
-    plt.tight_layout()
-    plt.savefig(output_plot_path)
-    plt.close()
-    print(f"Saved comparison plot to {output_plot_path}")
-
-    print("Single file processed.")
+def compute_log_magnitude_db_for_plotting(magnitude_tensor, eps=EPS):
+    """Computes log-magnitude spectrogram (20*log10(mag)) for plotting."""
+    return 20 * np.log10(magnitude_tensor.cpu().numpy() + eps)
 
 
 if __name__ == "__main__":
-    main()
+    print(f"Loading model from {MODEL_PATH}")
+    # Pass MODEL_DILATION_RATES to the constructor
+    # Ensure model activation in constructor matches training if not default relu
+    model = SDnCNN(
+        MODEL_DEPTH,
+        MODEL_CHANNELS,
+        activation="relu",
+        dilation_rates=MODEL_DILATION_RATES,
+    ).to(device)
+
+    try:
+        sd = torch.load(str(MODEL_PATH), map_location=device)
+        model.load_state_dict(sd)
+        print(f"Successfully loaded model weights from {MODEL_PATH}")
+    except FileNotFoundError:
+        print(
+            f"WARNING: Model file {MODEL_PATH} not found. Using randomly initialized weights."
+        )
+    except RuntimeError as e:
+        print(f"WARNING: Error loading model weights from {MODEL_PATH}: {e}")
+        print(
+            "This might be due to a mismatch in model architecture (e.g., depth, channels, dilation rates). "
+            "Using randomly initialized weights."
+        )
+    model.eval()
+
+    stft_params = {
+        "fft_size": FFT_SIZE,
+        "hop_length": HOP_LENGTH,
+        "window_length": WINDOW_LENGTH,
+        "window_type": STFT_WINDOW_TYPE.lower(),
+    }
+
+    print("Loading audio…")
+    if not CLEAN_FILE.exists() or not NOISY_FILE.exists():
+        print(
+            f"Warning: {CLEAN_FILE} or {NOISY_FILE} not found. Using dummy noise data."
+        )
+        L_dummy = TARGET_SAMPLE_RATE * 3  # 3 seconds of dummy audio
+        clean_wav_cpu = torch.zeros(L_dummy)
+        noisy_wav_cpu = torch.rand(L_dummy) * 0.5 - 0.25
+    else:
+        clean_wav_cpu = load_and_preprocess_audio(CLEAN_FILE, TARGET_SAMPLE_RATE)
+        noisy_wav_cpu = load_and_preprocess_audio(NOISY_FILE, TARGET_SAMPLE_RATE)
+
+    L = min(clean_wav_cpu.shape[-1], noisy_wav_cpu.shape[-1])
+    if L == 0:
+        print("Error: Audio length is zero after loading/preprocessing. Exiting.")
+        exit()
+
+    clean_wav_cpu, noisy_wav_cpu = clean_wav_cpu[:L], noisy_wav_cpu[:L]
+
+    noisy_wav_gpu = noisy_wav_cpu.to(device)
+    clean_wav_gpu = clean_wav_cpu.to(device)
+
+    print("Processing noisy audio for model input…")
+    # This returns log-power spectrogram (10*log10(mag^2+eps)) and phase
+    log_noisy_db_model, noisy_phase_model = compute_stft_spectrogram(
+        noisy_wav_gpu, **stft_params
+    )
+
+    print("Normalizing noisy spectrogram…")
+    norm_noisy_model, x_hat_min, x_bar_max = normalize_spectrogram_paper(
+        log_noisy_db_model
+    )
+
+    print("Running model…")
+    with torch.no_grad():
+        inp = norm_noisy_model.unsqueeze(0).unsqueeze(0)
+        pred_noise_norm_model = model(inp)
+
+        if pred_noise_norm_model.shape[-2:] != inp.shape[-2:]:
+            print(
+                f"Warning: Model output shape {pred_noise_norm_model.shape} differs from input feature map shape {inp.shape}. "
+                "This might lead to errors or unexpected behavior if not handled by subsequent processing. "
+                "It could indicate an issue with model architecture or loaded weights if padding is meant to preserve dimensions."
+            )
+            # If using the provided SDnCNN with padding=dilation, this should not happen unless model loading failed
+            # or there's a mismatch. Forcing a resize here is a patch, not a fix.
+            # from torchvision.transforms import Resize
+            # resize_transform = Resize(inp.shape[-2:])
+            # pred_noise_norm_model = resize_transform(pred_noise_norm_model)
+
+        pred_noise_norm_model = pred_noise_norm_model.squeeze(0).squeeze(0)
+
+    est_clean_norm_model = norm_noisy_model - pred_noise_norm_model
+
+    print("Denormalizing estimated clean spectrogram…")
+    log_est_clean_db_model = denormalize_spectrogram_paper(
+        est_clean_norm_model, x_hat_min, x_bar_max
+    )
+
+    print("Reconstructing waveform…")
+    # utils.reconstruct_waveform handles windowing internally based on stft_params
+    wave_est = reconstruct_waveform(
+        log_est_clean_db_model,
+        noisy_phase_model,
+        **stft_params,
+        orig_length=L,
+    )
+    wave_est_np = wave_est.cpu().numpy()
+
+    print(f"Saving reconstructed waveform to {OUT_WAV}")
+    torchaudio.save(
+        str(OUT_WAV), torch.from_numpy(wave_est_np).unsqueeze(0), TARGET_SAMPLE_RATE
+    )
+
+    print("Preparing data for plotting…")
+    # For clean signal (for plotting)
+    log_clean_db_plot, _ = compute_stft_spectrogram(clean_wav_gpu, **stft_params)
+    mag_clean_plot = get_magnitude_from_log_power_db(log_clean_db_plot)
+    db_clean_to_plot = compute_log_magnitude_db_for_plotting(mag_clean_plot)
+
+    # For noisy signal (for plotting) - can reuse log_noisy_db_model
+    mag_noisy_plot = get_magnitude_from_log_power_db(log_noisy_db_model)
+    db_noisy_to_plot = compute_log_magnitude_db_for_plotting(mag_noisy_plot)
+
+    # For estimated signal (for plotting) - can reuse log_est_clean_db_model
+    mag_est_plot = get_magnitude_from_log_power_db(log_est_clean_db_model)
+    db_est_to_plot = compute_log_magnitude_db_for_plotting(mag_est_plot)
+
+    vmin = np.min(db_noisy_to_plot)
+    vmax = np.max(db_noisy_to_plot)
+    print(
+        f"Using common color scale for spectrograms: vmin={vmin:.2f} dB, vmax={vmax:.2f} dB"
+    )
+
+    print("Plotting…")
+    plt.figure(figsize=(12, 9))
+
+    # Waveforms
+    clean_wav_np = clean_wav_cpu.numpy()
+    noisy_wav_np = noisy_wav_cpu.numpy()
+    # wave_est_np is already available
+
+    waveform_data = [
+        (clean_wav_np, "Clean", 1),
+        (noisy_wav_np, "Noisy", 3),
+        (wave_est_np, "Estimated Clean", 5),
+    ]
+    # Determine common y-limits for waveforms for better comparison
+    min_y_wav = (
+        min(np.min(clean_wav_np), np.min(noisy_wav_np), np.min(wave_est_np)) * 1.1
+    )
+    max_y_wav = (
+        max(np.max(clean_wav_np), np.max(noisy_wav_np), np.max(wave_est_np)) * 1.1
+    )
+
+    for sig, title, pos in waveform_data:
+        ax = plt.subplot(3, 2, pos)
+        ax.plot(sig)
+        ax.set_title(f"{title} Waveform")
+        ax.set_ylim(min_y_wav, max_y_wav)
+        ax.set_xlabel("Time (samples)")
+        ax.set_ylabel("Amplitude")
+
+    # Spectrograms
+    spectrogram_data = [
+        (db_clean_to_plot, "Clean Spec (dB)", 2),
+        (db_noisy_to_plot, "Noisy Spec (dB)", 4),
+        (db_est_to_plot, "Estimated Clean Spec (dB)", 6),
+    ]
+    for spec_data, title, pos in spectrogram_data:
+        ax = plt.subplot(3, 2, pos)
+        im = ax.imshow(
+            spec_data,
+            origin="lower",
+            aspect="auto",
+            cmap="viridis",
+            vmin=vmin,
+            vmax=vmax,
+        )
+        ax.set_title(title)
+        ax.set_xlabel("Time (frames)")
+        ax.set_ylabel("Frequency (bins)")
+        plt.colorbar(im, ax=ax, format="%+2.0f dB", label="Log Magnitude (dB)")
+
+    plt.tight_layout()
+    plt.savefig(OUTPUT_IMAGE)
+    print(f"Saved comparison plot to {OUTPUT_IMAGE}")
+    print("Done.")
