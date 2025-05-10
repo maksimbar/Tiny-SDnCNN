@@ -9,6 +9,7 @@ dependencies = [
     "numpy>=2.2.5",
     "pesq>=0.0.4",
     "pystoi>=0.4.1",
+    "soundfile>=0.13.1",
     "torch>=2.7.0",
     "torchaudio>=2.7.0",
 ]
