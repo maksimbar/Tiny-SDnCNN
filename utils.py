@@ -230,7 +230,7 @@ class SpectrogramPatchDataset(Dataset):
                 processed_files += 1
 
         logger.info(
-            f"Created {self.purpose} dataset / Clean files: {processed_files} / Total patches: {len(self.noisy_patches)} (Using ZERO padding for short sequences)"
+            f"Created {self.purpose} dataset / Clean files: {processed_files} / Total patches: {len(self.noisy_patches)}"
         )
 
     def __len__(self):
@@ -254,10 +254,6 @@ class AudioMetricDataset(Dataset):
         noisy_dir = Path(samples_directory) / "noisy"
         self.file_pairs = []
         snr_pattern = re.compile(r"_w(-?\d+)\.wav$")
-
-        logger.info(
-            f"Creating {self.purpose} AudioMetricDataset from {samples_directory}..."
-        )
 
         clean_files = {p.stem: p for p in clean_dir.glob("*.wav")}
         processed_pairs = 0
@@ -283,8 +279,9 @@ class AudioMetricDataset(Dataset):
                 )
                 processed_pairs += 1
 
-        logger.info(f"Finished creating {self.purpose} dataset.")
-        logger.info(f"Found {processed_pairs} clean/noisy pairs.")
+        logger.info(
+            f"Created {self.purpose} dataset with {processed_pairs} clean/noisy pairs."
+        )
 
     def __len__(self):
         return len(self.file_pairs)

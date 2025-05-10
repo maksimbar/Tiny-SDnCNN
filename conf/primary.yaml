@@ -1,10 +1,10 @@
 defaults:
   - _self_
-  # - variations: restoring 
+
+seed: 8000
 
 data:
   sample_rate: 16000
-  seed: 42
   base_dir: '${hydra:runtime.cwd}/data' 
   samples:
     train: '${data.base_dir}/train'
@@ -46,7 +46,7 @@ train:
     enabled: true 
 
 eval:
-  output_results_dir: .
+  model_checkpoint: 'models/best_model.pt'
   snr_levels:
     - 0
     - 3

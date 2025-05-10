@@ -4,7 +4,6 @@ import random
 from pathlib import Path
 import csv
 import math
-
 import hydra
 import numpy as np
 import torch
@@ -50,7 +49,6 @@ def train_model(
         gamma = (sgd_config.lr_end / sgd_config.lr_start) ** (
             1.0 / max(1, sgd_config.lr_decay_epochs - 1)
         )
-        logger.info(f"SGD LR decay enabled with gamma: {gamma:.4e}")
 
     criterion = nn.MSELoss()
 
@@ -91,7 +89,6 @@ def train_model(
     logger.info(f"Early stopping: {'Enabled' if early_stop_enabled else 'Disabled'}")
     if early_stop_enabled:
         logger.info(f" - Patience: {patience}, Min Delta: {min_delta}")
-    logger.info(f"Best model checkpoint path: {checkpoint_path}")
 
     val_metric_config_path = config.data.samples.valid
     val_sample_rate = config.data.sample_rate
@@ -278,12 +275,14 @@ def train_model(
 
 @hydra.main(config_path="conf", config_name="primary", version_base=None)
 def main(config: DictConfig):
-    seed = config.get("seed", 42)
+    seed = config.get("seed")
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
     if config.get("device", "auto") == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -306,12 +305,11 @@ def main(config: DictConfig):
         config.data.samples.train, **common_dataset_args, purpose="training"
     )
     val_patch_dataset = SpectrogramPatchDataset(
-        config.data.samples.valid, **common_dataset_args, purpose="validation_patches"
+        config.data.samples.valid, **common_dataset_args, purpose="validation"
     )
 
     train_batch_size = config.train.batch_size
     val_batch_size = config.train.get("val_batch_size", train_batch_size)
-    logger.info(f"Train BS: {train_batch_size}, Val Patch BS: {val_batch_size}")
 
     use_persistent_workers = config.train.num_workers > 0
     train_loader = DataLoader(
@@ -345,9 +343,6 @@ def main(config: DictConfig):
             and all(item > 0 for item in candidate_list)
         ):
             parsed_dilation_rates_for_model_constructor = candidate_list
-            logger.info(
-                f"Attempting to use dilation_rates from config: {parsed_dilation_rates_for_model_constructor}"
-            )
         else:
             logger.warning(
                 f"Invalid 'dilation_rates' in config: {raw_dilation_rates_from_cfg}. "
@@ -366,12 +361,6 @@ def main(config: DictConfig):
         dilation_rates=parsed_dilation_rates_for_model_constructor,
     )
 
-    logger.info(
-        f"Instantiated SDnCNN model. Effective parameters: "
-        f"depth={model_instance.num_layers}, channels={model_instance.num_channels}, "
-        f"activation (requested)='{config.model.get('activation', 'relu')}', "
-        f"effective_dilation_rates={model_instance.dilation_rates}"
-    )
     num_params = sum(p.numel() for p in model_instance.parameters() if p.requires_grad)
     logger.info(f"Trainable parameters: {num_params:,}")
 

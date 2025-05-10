@@ -16,11 +16,9 @@ class SDnCNN(nn.Module):
         )
 
         logger.info(
-            f"Initializing SDnCNN: layers={num_layers}, channels={num_channels}, activation={activation}, "
-            f"dilation_rates (for intermediate layers, cyclic): {self.dilation_rates}"
+            f"Model config: layers={num_layers}, channels={num_channels}, activation={activation}, dilations: {self.dilation_rates}"
         )
 
-        # Store the class and its parameters
         self.activation_class = None
         self.activation_params = {}
 
@@ -39,19 +37,16 @@ class SDnCNN(nn.Module):
             self.activation_params = {"inplace": True}
 
         layers = []
-        # First layer
+
         layers.append(
             nn.Conv2d(1, num_channels, kernel_size=3, padding=1, bias=True, dilation=1)
         )
-        layers.append(
-            self.activation_class(**self.activation_params)
-        )  # Correct instantiation
+        layers.append(self.activation_class(**self.activation_params))
 
-        # Intermediate layers
         num_intermediate_layers = num_layers - 2
         for i in range(num_intermediate_layers):
             current_dilation = self.dilation_rates[i % len(self.dilation_rates)]
-            current_padding = current_dilation  # Assuming kernel_size=3, padding=dilation maintains size
+            current_padding = current_dilation
 
             layers.append(
                 nn.Conv2d(
@@ -64,11 +59,8 @@ class SDnCNN(nn.Module):
                 )
             )
             layers.append(nn.BatchNorm2d(num_channels))
-            layers.append(
-                self.activation_class(**self.activation_params)
-            )  # Correct instantiation
+            layers.append(self.activation_class(**self.activation_params))
 
-        # Last layer
         layers.append(
             nn.Conv2d(num_channels, 1, kernel_size=3, padding=1, bias=True, dilation=1)
         )

@@ -1,10 +1,10 @@
 name: tuning
 
 study:
-  trials: 20
+  trials: 30
   epochs_per_trial: 30
   seed: 42
-  name: architectural_modifications
+  name: experiments
   output_db: study_results.db
 
 search_space:

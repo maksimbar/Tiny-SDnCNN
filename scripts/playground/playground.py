@@ -3,6 +3,9 @@ import torchaudio
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
+import sys
+
+sys.path.append(str(Path(__file__).resolve().parents[2]))
 
 from model import SDnCNN
 from utils import (
@@ -13,20 +16,24 @@ from utils import (
     reconstruct_waveform,
 )
 
-# --- Constants ---
-CLEAN_FILE = Path("data_small/test/clean/F_BG014_02-a0221.wav")
-NOISY_FILE = Path("data_small/test/noisy/F_BG014_02-a0221_w27.wav")
-MODEL_PATH = Path("models/best_model.pt")
-OUTPUT_IMAGE = Path("spectrogram_comparison_playground.png")
-OUT_WAV = Path("reconstructed_playground_test.wav")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+sys.path.append(str(REPO_ROOT))
+
+SCRIPT_DIR = Path(__file__).parent.resolve()
+
+CLEAN_FILE = REPO_ROOT / "data_small/test/clean/F_BG014_02-a0221.wav"
+NOISY_FILE = REPO_ROOT / "data_small/test/noisy/F_BG014_02-a0221_w12.wav"
+MODEL_PATH = REPO_ROOT / "models/best_model.pt"
+
+OUTPUT_IMAGE = SCRIPT_DIR / "visual.png"
+OUT_WAV = SCRIPT_DIR / "reconstructed.wav"
+
 
 TARGET_SAMPLE_RATE = 16000
 FFT_SIZE = 512
 HOP_LENGTH = 128
 WINDOW_LENGTH = 512
-STFT_WINDOW_TYPE = (
-    "hamming"  # Should match training config (e.g., primary.yaml stft.window_type)
-)
+STFT_WINDOW_TYPE = "hamming"
 
 MODEL_DEPTH = 17
 MODEL_CHANNELS = 64
