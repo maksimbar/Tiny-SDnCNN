@@ -75,7 +75,7 @@ def main(cfg) -> None:
     model_instance.eval()
 
     # --- Specific file processing ---
-    noisy_file_name = "F_BG014_02-a0221_w00.wav"
+    noisy_file_name = "F_BG014_02-a0221_w12.wav"
     # Per your previous instruction: "matching clean samples/FF_BG014_02-a0221.wav"
     # If clean file has FF prefix and noisy does not, reflect that here:
     clean_file_name = "F_BG014_02-a0221.wav"
