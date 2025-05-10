@@ -1,0 +1,68 @@
+defaults:
+  - _self_
+  # - variations: restoring 
+
+data:
+  sample_rate: 8000
+  seed: 42
+  base_dir: '${hydra:runtime.cwd}/data' 
+  samples:
+    train: '${data.base_dir}/train'
+    valid: '${data.base_dir}/valid'
+    test: '${data.base_dir}/test'
+
+stft:
+  n_fft: 512
+  hop_length: 128    
+  win_length: 512   
+  window_type: hamming 
+
+patch:
+  height: 70
+  width: 110
+  stride: 20
+
+model:
+  depth: 17
+  channels: 64
+  activation: relu
+  dilation_rates: [1, 2, 4, 2, 1] 
+
+train:
+  epochs: 20
+  batch_size: 128
+  num_workers: 1
+  drop_last: true
+  eval_metric_freq: 20
+  sgd:
+    lr_start: 0.1
+    lr_end: 0.0001
+    lr_decay_epochs: 20
+    momentum: 0.9
+    weight_decay: 0.0001
+  early_stopping:
+    patience: 5
+    min_delta: 1e-4
+    enabled: true 
+
+eval:
+  output_results_dir: .
+  snr_levels:
+    - 0
+    - 3
+    - 6
+    - 9
+    - 12
+    - 15
+    - 18
+    - 21
+    - 24
+    - 27
+    - 30
+    - 33
+
+hydra:
+  run:
+    dir: 'outputs/${now:%Y-%m-%d_%H-%M-%S}'
+  job:
+    chdir: true 

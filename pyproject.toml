@@ -1,0 +1,14 @@
+[project]
+name = "Tiny-SDnCNN"
+version = "0.1.0"
+description = "Tiny-SDnCNN implementation"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "hydra-core>=1.3.2",
+    "numpy>=2.2.5",
+    "pesq>=0.0.4",
+    "pystoi>=0.4.1",
+    "torch>=2.7.0",
+    "torchaudio>=2.7.0",
+]

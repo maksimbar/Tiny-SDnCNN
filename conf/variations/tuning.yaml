@@ -1,0 +1,33 @@
+name: tuning
+
+study:
+  trials: 20
+  epochs_per_trial: 30
+  seed: 42
+  name: architectural_modifications
+  output_db: study_results.db
+
+search_space:
+  activations:
+    - relu
+    - leaky_relu
+    - prelu
+  window_types:
+    - hann
+    - hamming
+    - blackman
+  dilation_patterns:
+    DC-0:
+      - 1
+    DC-1:
+      - 1
+      - 2
+    DC-2:
+      - 1
+      - 2
+      - 4
+    DC-4:
+      - 1
+      - 2
+      - 4
+      - 8

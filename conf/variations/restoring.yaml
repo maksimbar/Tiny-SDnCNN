@@ -1,0 +1,5 @@
+hydra:
+  run:
+    dir: 'outputs123/${now:%Y-%m-%d_%H-%M-%S}'
+  job:
+    chdir: true
