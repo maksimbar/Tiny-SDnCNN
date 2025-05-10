@@ -29,21 +29,21 @@ model:
   dilation_rates: [1] 
 
 train:
-  epochs: 20
+  epochs: 50
   batch_size: 128
   num_workers: 1
   drop_last: true
-  eval_metric_freq: 20
+  eval_metric_freq: 50
   sgd:
     lr_start: 0.1
     lr_end: 0.0001
-    lr_decay_epochs: 20
+    lr_decay_epochs: 50
     momentum: 0.9
     weight_decay: 0.0001
   early_stopping:
     patience: 5
     min_delta: 1e-4
-    enabled: true 
+    enabled: false
 
 eval:
   model_checkpoint: 'models/best_model.pt'
