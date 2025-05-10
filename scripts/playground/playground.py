@@ -22,7 +22,7 @@ sys.path.append(str(REPO_ROOT))
 SCRIPT_DIR = Path(__file__).parent.resolve()
 
 CLEAN_FILE = REPO_ROOT / "data_small/test/clean/F_BG014_02-a0221.wav"
-NOISY_FILE = REPO_ROOT / "data_small/test/noisy/F_BG014_02-a0221_w12.wav"
+NOISY_FILE = REPO_ROOT / "data_small/test/noisy/F_BG014_02-a0221_w18.wav"
 MODEL_PATH = REPO_ROOT / "models/best_model.pt"
 
 OUTPUT_IMAGE = SCRIPT_DIR / "visual.png"
