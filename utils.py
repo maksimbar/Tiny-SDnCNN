@@ -179,20 +179,18 @@ class SpectrogramPatchDataset(Dataset):
                 w, s = self.patch_width, self.patch_stride
 
                 if T < w:
-                    pad_amount = w - T
-                    pad_n = torch.nn.functional.pad(
-                        n_tilde.unsqueeze(0).unsqueeze(0),
-                        (0, pad_amount),
-                        mode="reflect",
-                    ).squeeze()
-                    pad_c = torch.nn.functional.pad(
-                        c_tilde.unsqueeze(0).unsqueeze(0),
-                        (0, pad_amount),
-                        mode="reflect",
-                    ).squeeze()
+                    pad_n_target_shape = torch.zeros(
+                        F, w, device=n_tilde.device, dtype=n_tilde.dtype
+                    )
+                    pad_c_target_shape = torch.zeros(
+                        F, w, device=c_tilde.device, dtype=c_tilde.dtype
+                    )
 
-                    self.noisy_patches.append(pad_n[:h, :w].unsqueeze(0))
-                    self.clean_patches.append(pad_c[:h, :w].unsqueeze(0))
+                    pad_n_target_shape[:, :T] = n_tilde
+                    pad_c_target_shape[:, :T] = c_tilde
+
+                    self.noisy_patches.append(pad_n_target_shape[:h, :w].unsqueeze(0))
+                    self.clean_patches.append(pad_c_target_shape[:h, :w].unsqueeze(0))
                     self.metadata.append(
                         {
                             "clean_file": clean_path.name,
@@ -227,7 +225,7 @@ class SpectrogramPatchDataset(Dataset):
                 processed_files += 1
 
         logger.info(
-            f"Created {self.purpose} dataset / Clean files: {processed_files} / Total patches: {len(self.noisy_patches)} "
+            f"Created {self.purpose} dataset / Clean files: {processed_files} / Total patches: {len(self.noisy_patches)}"
         )
 
     def __len__(self):
