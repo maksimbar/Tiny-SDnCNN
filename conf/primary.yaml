@@ -42,8 +42,8 @@ train:
     weight_decay: 0.0001
   early_stopping:
     patience: 5
-    min_delta: 1e-4
-    enabled: false
+    min_delta: 1e-5
+    enabled: true 
 
 eval:
   model_checkpoint: 'models/best_model.pt'
