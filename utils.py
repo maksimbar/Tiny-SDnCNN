@@ -332,7 +332,7 @@ def calculate_metrics_bare(ref_wav_np, enh_wav_np, sr, filename):
 
     mode = "wb" if sr > 8000 else "nb"
 
-    metrics["pesq"] = pesq(sr, ref, enh, mode)
+    # metrics["pesq"] = pesq(sr, ref, enh, mode)
     # metrics["stoi"] = stoi(
     #     ref.astype(np.float64), enh.astype(np.float64), sr, extended=False
     # )
