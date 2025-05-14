@@ -43,7 +43,7 @@ train:
   early_stopping:
     patience: 5
     min_delta: 1e-5
-    enabled: true 
+    enabled: false 
 
 eval:
   model_checkpoint: 'models/best_model.pt'
