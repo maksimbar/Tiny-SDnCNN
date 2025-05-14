@@ -224,10 +224,8 @@ def main(config: DictConfig):
         if snr_key in target_snr_levels:
             metrics_by_snr[snr_key].append(item)
 
-    output_dir = Path.cwd() / config.eval.output_results_dir
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    snr_summary_output_path = output_dir / "test_metrics_by_snr.csv"
+    current_dir = Path.cwd()
+    snr_summary_output_path = current_dir / "test_metrics_by_snr.csv"
     logger.info(f"Writing SNR-specific metrics to: {snr_summary_output_path}")
 
     with open(snr_summary_output_path, "w", newline="") as csvfile:
@@ -294,7 +292,7 @@ def main(config: DictConfig):
         )
         logger.info("-" * 30)
 
-        overall_summary_path = output_dir / "test_metrics_overall.txt"
+        overall_summary_path = current_dir / "test_metrics_overall.txt"
         with open(overall_summary_path, "w") as f:
             f.write("Overall Average Metrics (for target SNRs):\n")
             f.write(
@@ -315,7 +313,7 @@ def main(config: DictConfig):
             "No metrics available for target SNRs to calculate overall average."
         )
 
-    actual_log_path = Path(config.eval.training_log_path)
+    actual_log_path = Path.cwd() / "training_log.csv"
     logger.info(f"Attempting to report training log from: {actual_log_path}")
     report_training_log(actual_log_path)
 
