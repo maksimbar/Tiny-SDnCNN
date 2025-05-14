@@ -15,7 +15,7 @@ stft:
   n_fft: 512
   hop_length: 128    
   win_length: 512   
-  window_type: blackman 
+  window_type: hamming 
 
 patch:
   height: 70
@@ -25,8 +25,8 @@ patch:
 model:
   depth: 17
   channels: 64
-  activation: prelu
-  dilation_rates: [2] 
+  activation: relu
+  dilation_rates: [1] 
 
 train:
   epochs: 50
@@ -46,7 +46,7 @@ train:
     enabled: false 
 
 eval:
-  model_checkpoint: 'models/best_model.pt'
+  model_checkpoint: 'models/original_model.pt'
   snr_levels:
     - 0
     - 3

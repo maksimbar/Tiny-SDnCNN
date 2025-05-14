@@ -12,5 +12,4 @@ wheels/
 # No Hydra outputs on master branch
 outputs
 plots
-models
 samples

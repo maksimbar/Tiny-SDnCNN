@@ -100,22 +100,9 @@ def run_evaluation_for_test(
 
 def report_training_log(training_log_path: Path):
     logger.info("\n--- Training Log Summary ---")
-    if not training_log_path.exists():
-        logger.error(f"Training log file not found: {training_log_path}")
-        return
-
     with open(training_log_path, "r", newline="") as csvfile:
         reader = csv.DictReader(csvfile)
         required_cols = ["epoch", "avg_train_loss", "epoch_time_s"]
-
-        if not reader.fieldnames or not all(
-            f in reader.fieldnames for f in required_cols
-        ):
-            logger.warning(
-                f"Training log {training_log_path} does not have the expected columns "
-                f"({', '.join(required_cols)})."
-            )
-            return
 
         has_val_loss = "avg_val_patch_loss" in reader.fieldnames
 
@@ -190,10 +177,6 @@ def main(config: DictConfig):
             f"Resolved relative model checkpoint path to: {model_checkpoint_path}"
         )
 
-    if not model_checkpoint_path.exists():
-        logger.error(f"Model checkpoint not found at {model_checkpoint_path}. Exiting.")
-        return
-
     logger.info(f"Loading model checkpoint from: {model_checkpoint_path}")
     model_instance.load_state_dict(
         torch.load(model_checkpoint_path, map_location=device)
@@ -224,11 +207,6 @@ def main(config: DictConfig):
         snr_levels=None,
         purpose="testing_metrics",
     )
-    if not test_metric_dataset or len(test_metric_dataset) == 0:
-        logger.error(
-            f"No test files found by AudioMetricDataset in {test_data_dir}. Exiting."
-        )
-        return
 
     test_metric_loader = DataLoader(
         test_metric_dataset,
@@ -364,7 +342,7 @@ def main(config: DictConfig):
         elif (Path.cwd() / training_log_file).exists():
             actual_log_path = Path.cwd() / training_log_file
         else:
-            actual_log_path = original_cwd / training_log_file  # Fallback assumption
+            actual_log_path = original_cwd / training_log_file
 
     report_training_log(actual_log_path)
 
