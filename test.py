@@ -218,9 +218,9 @@ def main(config: DictConfig):
             writer.writerow(
                 {
                     "snr": snr_val,
-                    "avg_pesq": f"{avg_snr_results.get('pesq', float('nan')):.4f}",
-                    "avg_stoi": f"{avg_snr_results.get('stoi', float('nan')):.4f}",
-                    "avg_si_sdr": f"{avg_snr_results.get('si_sdr', float('nan')):.4f}",
+                    "avg_pesq": f"{avg_snr_results.get('pesq', float('nan')):.6f}",
+                    "avg_stoi": f"{avg_snr_results.get('stoi', float('nan')):.6f}",
+                    "avg_si_sdr": f"{avg_snr_results.get('si_sdr', float('nan')):.6f}",
                     "pesq_count": avg_snr_results.get("valid_pesq_count", 0),
                     "stoi_count": avg_snr_results.get("valid_stoi_count", 0),
                     "sisdr_count": avg_snr_results.get("valid_si_sdr_count", 0),
@@ -229,8 +229,8 @@ def main(config: DictConfig):
             )
             logger.info(
                 f"SNR {snr_val:2d} dB | PESQ: {avg_snr_results.get('pesq', float('nan')):.3f} ({avg_snr_results.get('valid_pesq_count', 0)}/{avg_snr_results.get('count', 0)}) | "
-                f"STOI: {avg_snr_results.get('stoi', float('nan')):.3f} ({avg_snr_results.get('valid_stoi_count', 0)}/{avg_snr_results.get('count', 0)}) | "
-                f"SI-SDR: {avg_snr_results.get('si_sdr', float('nan')):.3f} ({avg_snr_results.get('valid_si_sdr_count', 0)}/{avg_snr_results.get('count', 0)})"
+                f"STOI: {avg_snr_results.get('stoi', float('nan')):.6f} ({avg_snr_results.get('valid_stoi_count', 0)}/{avg_snr_results.get('count', 0)}) | "
+                f"SI-SDR: {avg_snr_results.get('si_sdr', float('nan')):.6f} ({avg_snr_results.get('valid_si_sdr_count', 0)}/{avg_snr_results.get('count', 0)})"
             )
 
     metrics_for_overall_average = []
@@ -242,13 +242,13 @@ def main(config: DictConfig):
         logger.info("-" * 30)
         logger.info("Overall Average Metrics (for target SNRs):")
         logger.info(
-            f"  PESQ:   {overall_avg_metrics.get('pesq', float('nan')):.4f} (over {overall_avg_metrics.get('valid_pesq_count', 0)} of {len(metrics_for_overall_average)} files)"
+            f"  PESQ:   {overall_avg_metrics.get('pesq', float('nan')):.6f} (over {overall_avg_metrics.get('valid_pesq_count', 0)} of {len(metrics_for_overall_average)} files)"
         )
         logger.info(
-            f"  STOI:   {overall_avg_metrics.get('stoi', float('nan')):.4f} (over {overall_avg_metrics.get('valid_stoi_count', 0)} of {len(metrics_for_overall_average)} files)"
+            f"  STOI:   {overall_avg_metrics.get('stoi', float('nan')):.6f} (over {overall_avg_metrics.get('valid_stoi_count', 0)} of {len(metrics_for_overall_average)} files)"
         )
         logger.info(
-            f"  SI-SDR: {overall_avg_metrics.get('si_sdr', float('nan')):.4f} (over {overall_avg_metrics.get('valid_si_sdr_count', 0)} of {len(metrics_for_overall_average)} files)"
+            f"  SI-SDR: {overall_avg_metrics.get('si_sdr', float('nan')):.6f} (over {overall_avg_metrics.get('valid_si_sdr_count', 0)} of {len(metrics_for_overall_average)} files)"
         )
         logger.info(
             f"  Total files considered for overall average: {len(metrics_for_overall_average)}"
@@ -259,13 +259,13 @@ def main(config: DictConfig):
         with open(overall_summary_path, "w") as f:
             f.write("Overall Average Metrics (for target SNRs):\n")
             f.write(
-                f"  PESQ:   {overall_avg_metrics.get('pesq', float('nan')):.4f} (over {overall_avg_metrics.get('valid_pesq_count', 0)} of {len(metrics_for_overall_average)} files)\n"
+                f"  PESQ:   {overall_avg_metrics.get('pesq', float('nan')):.6f} (over {overall_avg_metrics.get('valid_pesq_count', 0)} of {len(metrics_for_overall_average)} files)\n"
             )
             f.write(
-                f"  STOI:   {overall_avg_metrics.get('stoi', float('nan')):.4f} (over {overall_avg_metrics.get('valid_stoi_count', 0)} of {len(metrics_for_overall_average)} files)\n"
+                f"  STOI:   {overall_avg_metrics.get('stoi', float('nan')):.6f} (over {overall_avg_metrics.get('valid_stoi_count', 0)} of {len(metrics_for_overall_average)} files)\n"
             )
             f.write(
-                f"  SI-SDR: {overall_avg_metrics.get('si_sdr', float('nan')):.4f} (over {overall_avg_metrics.get('valid_si_sdr_count', 0)} of {len(metrics_for_overall_average)} files)\n"
+                f"  SI-SDR: {overall_avg_metrics.get('si_sdr', float('nan')):.6f} (over {overall_avg_metrics.get('valid_si_sdr_count', 0)} of {len(metrics_for_overall_average)} files)\n"
             )
             f.write(
                 f"  Total files considered for overall average: {len(metrics_for_overall_average)}\n"
