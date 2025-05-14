@@ -22,7 +22,7 @@ sys.path.append(str(REPO_ROOT))
 SCRIPT_DIR = Path(__file__).parent.resolve()
 
 CLEAN_FILE = REPO_ROOT / "data_small/test/clean/F_BG014_02-a0221.wav"
-NOISY_FILE = REPO_ROOT / "data_small/test/noisy/F_BG014_02-a0221_w18.wav"
+NOISY_FILE = REPO_ROOT / "data_small/test/noisy/F_BG014_02-a0221_w15.wav"
 MODEL_PATH = REPO_ROOT / "models/best_model.pt"
 
 OUTPUT_IMAGE = SCRIPT_DIR / "visual.png"
@@ -33,14 +33,14 @@ TARGET_SAMPLE_RATE = 16000
 FFT_SIZE = 512
 HOP_LENGTH = 128
 WINDOW_LENGTH = 512
-STFT_WINDOW_TYPE = "hamming"
+STFT_WINDOW_TYPE = "blackman"
 
 MODEL_DEPTH = 17
 MODEL_CHANNELS = 64
 # Example: [1, 2, 4, 2, 1] will cycle through these for intermediate layers
 # Set to None or [] or [1] for standard convolutions (dilation=1) for intermediate layers
 MODEL_DILATION_RATES = [
-    1
+    2
 ]  # Ensure this matches the trained model if MODEL_PATH is used
 
 EPS = 1e-9  # Epsilon for log calculation and avoiding division by zero
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     model = SDnCNN(
         MODEL_DEPTH,
         MODEL_CHANNELS,
-        activation="relu",
+        activation="prelu",
         dilation_rates=MODEL_DILATION_RATES,
     ).to(device)
 
