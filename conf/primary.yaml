@@ -46,8 +46,7 @@ train:
     enabled: false 
 
 eval:
-  model_checkpoint: 'models/original_model.pt'
-  output_results_dir: .
+  model_checkpoint: '../../models/original_model.pt'
   snr_levels:
     - 0
     - 3

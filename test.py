@@ -102,7 +102,6 @@ def report_training_log(training_log_path: Path):
     logger.info("\n--- Training Log Summary ---")
     with open(training_log_path, "r", newline="") as csvfile:
         reader = csv.DictReader(csvfile)
-        required_cols = ["epoch", "avg_train_loss", "epoch_time_s"]
 
         has_val_loss = "avg_val_patch_loss" in reader.fieldnames
 
@@ -168,14 +167,7 @@ def main(config: DictConfig):
         dilation_rates=model_dilation_rates_parsed,
     )
 
-    model_checkpoint_path_str = config.eval.model_checkpoint
-    model_checkpoint_path = Path(model_checkpoint_path_str)
-    if not model_checkpoint_path.is_absolute():
-        original_cwd = Path(hydra.utils.get_original_cwd())
-        model_checkpoint_path = original_cwd / model_checkpoint_path
-        logger.info(
-            f"Resolved relative model checkpoint path to: {model_checkpoint_path}"
-        )
+    model_checkpoint_path = Path(config.eval.model_checkpoint)
 
     logger.info(f"Loading model checkpoint from: {model_checkpoint_path}")
     model_instance.load_state_dict(
@@ -191,12 +183,8 @@ def main(config: DictConfig):
         "window_type": config.stft.window_type.lower(),
     }
 
-    test_data_dir_str = config.data.samples.test
-    test_data_dir = Path(test_data_dir_str)
-    if not test_data_dir.is_absolute():
-        original_cwd = Path(hydra.utils.get_original_cwd())
-        test_data_dir = original_cwd / test_data_dir
-        logger.info(f"Resolved relative test data directory to: {test_data_dir}")
+    test_data_dir = Path(config.data.samples.test)
+    logger.info(f"Using test data directory: {test_data_dir}")
 
     target_snr_levels = sorted(list(range(0, 33 + 1, 3)))
     logger.info(f"Target SNR levels for evaluation: {target_snr_levels}")
@@ -236,10 +224,7 @@ def main(config: DictConfig):
         if snr_key in target_snr_levels:
             metrics_by_snr[snr_key].append(item)
 
-    output_dir_str = config.eval.output_results_dir
-    output_dir = Path(output_dir_str)
-    if not output_dir.is_absolute():
-        output_dir = Path.cwd() / output_dir
+    output_dir = Path.cwd() / config.eval.output_results_dir
     output_dir.mkdir(parents=True, exist_ok=True)
 
     snr_summary_output_path = output_dir / "test_metrics_by_snr.csv"
@@ -330,20 +315,8 @@ def main(config: DictConfig):
             "No metrics available for target SNRs to calculate overall average."
         )
 
-    training_log_file_path_str = config.eval.training_log_path
-    training_log_file = Path(training_log_file_path_str)
-
-    original_cwd = Path(hydra.utils.get_original_cwd())
-
-    actual_log_path = training_log_file
-    if not training_log_file.is_absolute():
-        if (original_cwd / training_log_file).exists():
-            actual_log_path = original_cwd / training_log_file
-        elif (Path.cwd() / training_log_file).exists():
-            actual_log_path = Path.cwd() / training_log_file
-        else:
-            actual_log_path = original_cwd / training_log_file
-
+    actual_log_path = Path(config.eval.training_log_path)
+    logger.info(f"Attempting to report training log from: {actual_log_path}")
     report_training_log(actual_log_path)
 
 
