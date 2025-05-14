@@ -98,43 +98,6 @@ def run_evaluation_for_test(
     return all_individual_metrics
 
 
-def report_training_log(training_log_path: Path):
-    logger.info("\n--- Training Log Summary ---")
-    with open(training_log_path, "r", newline="") as csvfile:
-        reader = csv.DictReader(csvfile)
-
-        has_val_loss = "avg_val_patch_loss" in reader.fieldnames
-
-        header_parts = [f"{'Epoch':>5}", f"{'Avg Train Loss':>15}"]
-        if has_val_loss:
-            header_parts.append(f"{'Avg Val Loss':>15}")
-        header_parts.append(f"{'Epoch Time (s)':>15}")
-
-        header_str = " | ".join(header_parts)
-        print(header_str)
-        print("-" * len(header_str))
-
-        for row in reader:
-            epoch = int(row["epoch"])
-            avg_train_loss = float(row["avg_train_loss"])
-            epoch_time_s = float(row["epoch_time_s"])
-
-            row_parts_data = [f"{epoch:>5}", f"{avg_train_loss:>15.4f}"]
-            if has_val_loss:
-                avg_val_loss_str = row.get("avg_val_patch_loss", "nan")
-                avg_val_loss = (
-                    float(avg_val_loss_str)
-                    if avg_val_loss_str.lower() != "nan"
-                    else float("nan")
-                )
-                row_parts_data.append(f"{avg_val_loss:>15.4f}")
-            row_parts_data.append(f"{epoch_time_s:>15.1f}")
-
-            print(" | ".join(row_parts_data))
-        print("-" * len(header_str))
-    logger.info("--- End of Training Log Summary ---\n")
-
-
 @hydra.main(config_path="conf", config_name="primary", version_base=None)
 def main(config: DictConfig):
     seed = config.get("seed")
@@ -312,10 +275,6 @@ def main(config: DictConfig):
         logger.warning(
             "No metrics available for target SNRs to calculate overall average."
         )
-
-    actual_log_path = Path.cwd() / "training_log.csv"
-    logger.info(f"Attempting to report training log from: {actual_log_path}")
-    report_training_log(actual_log_path)
 
 
 if __name__ == "__main__":
