@@ -282,7 +282,7 @@ def main(config: DictConfig):
     if torch.cuda.is_available():
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
-        torch.backends.cudnn.benchmark = False
+        torch.backends.cudnn.benchmark = True
 
     if config.get("device", "auto") == "auto":
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
